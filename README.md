@@ -91,7 +91,7 @@ aws emr create-cluster \
 --region ["$region-id"]
 ```
 
-Note that you should set your own values for each of the parameters. The example above would spin up three (3) GPU instances (g2.2xlarge), and is expecting an SSH key, an AMI ID, an S3 bucket URI, a cluster name, and a region ID.
+Note that you should set your own values for each of the parameters. The example above would spin up "$instance-count" number of GPU instances (g2.2xlarge), and is expecting an SSH key, an AMI ID, an S3 bucket URI, a cluster name, and a region ID.
 
 Mounting EFS via bootstrap action:
 
@@ -114,7 +114,7 @@ EmrManagedMasterSecurityGroup=["$sg-masterId"],EmrManagedSlaveSecurityGroup=["$s
 AdditionalMasterSecurityGroups=["$sg-EFS"],AdditionalSlaveSecurityGroups=["$sg-EFS"] \
 --service-role EMR_DefaultRole \
 --custom-ami-id ["$ami-id"] \
---bootstrap-actions Path="s3://bucket/emr-efs-bootstrap.sh",Args=["$fs-id","$region-id"] \
+--bootstrap-actions Path="s3://aws-dl-emr-bootstrap/emr_efs_bootstrap.sh",Args=["$fs-id","$region-id"] \
 --log-uri "S3://your-logging-bucket" \
 --name ["$cluster-name"] \
 --region ["$region-id"]
