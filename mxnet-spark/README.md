@@ -255,8 +255,8 @@ We will use the ```spark-submit``` script to run our Spark Application. The mxne
 export LD_PATH $LD_LIBRARY_PATH ; spark-submit --deploy-mode cluster \
 --master yarn --conf spark.dynamicAllocation.enabled=false \
 --conf spark.executor.memory=40g \
---conf spark.executorEnv.LD_LIBRARY_PATH=$LD_PATH \
---driver-library-path $LD_PATH \
+--conf spark.executorEnv.LD_LIBRARY_PATH=\$LD_PATH \
+--driver-library-path \$LD_PATH \
 --py-files utils.py,mxinfer.py \
 infer_main.py --sym_url 'http://data.mxnet.io/models/imagenet/resnet/18-layers/resnet-18-symbol.json' \
 --param_url 'http://data.mxnet.io/models/imagenet/resnet/18-layers/resnet-18-0000.params' \
