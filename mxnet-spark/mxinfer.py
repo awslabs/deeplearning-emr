@@ -99,7 +99,7 @@ class MXModel(object):
         
         return mod
     
-def predict(img, args):
+def predict(img_batch, args):
     """
     Run predication on batch of images in 4-D numpy array format and return the top_5 probability along with their classes
     """
@@ -110,7 +110,7 @@ def predict(img, args):
     if not MXModel.model_loaded:
         MXModel(args['sym_url'], args['param_url'], args['label_url'], args['batch'])
     
-    MXModel.mod.forward(Batch([mx.nd.array(img)]))
+    MXModel.mod.forward(Batch([mx.nd.array(img_batch)]))
 
     output = MXModel.mod.get_outputs()
     batch_prob = output[0].asnumpy()

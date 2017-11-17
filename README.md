@@ -1,4 +1,7 @@
-In this repo you can find information on running deep learning tasks on the EMR Platform.
+# Bringing Deep Learning to Amazon EMR
 
-[training-on-emr](./training-on-emr): provides step by step instructions to setup EMR cluster with Deep Learning Libraries and run distributed training on the cluster.
-[mxnet-spark](./mxnet-spark): shows how to run distributed offline inference on large datasets using MXNet and Spark on the EMR platform. 
+In this repo you will find information on running deep learning tasks on the Amazon EMR Platform.
+
+[Distributed Deep Learning Training on Amazon EMR](./training-on-emr): Provides step by step instructions to setup EMR cluster with Apache MXNet and Tensorflow Deep Learning Libraries and run distributed training on the cluster.
+
+[Distributed Deep Learning Inference on Amazon EMR](./mxnet-spark): Shows how to run distributed offline inference on large datasets using Apache MXNet (incubating) and Spark on Amazon EMR. 
