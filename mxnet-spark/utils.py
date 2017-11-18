@@ -27,8 +27,10 @@ def get_args():
     parser.add_argument('--label_url', help='Url at which MXNet Model Synset file is stored', required=True)
     
     parser.add_argument('--batch', type=int, default=32, help='Number of images to process at a time', required=True)
-    parser.add_argument('--output_s3_key', help='S3 Key in the bucket to which the predictions should be written',
-                        required=False, default='mxinfer_output')
+    parser.add_argument('--output_s3_key', help='S3 Key in output_s3_bucket to which the predictions should be written',
+                        required=False)
+    parser.add_argument('--output_s3_bucket', help='S3 bucket to which the predictions should be written',
+                        required=False)
 
     parser.add_argument('--access_key', help='AWS access Key', required=False, default=None)
     parser.add_argument('--secret_key', help='AWS access secret Key', required=False, default=None)
