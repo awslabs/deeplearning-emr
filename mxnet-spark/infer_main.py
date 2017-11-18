@@ -99,11 +99,11 @@ def main():
 
     logger.info("predictions: {}".format(output))
 
-    if args['output_s3_key']:
+    if args['output_s3_key'] and args['output_s3_bucket']:
         with open('/tmp/' + args['output_s3_key'] , 'w+') as f:
             for each in output:
                 f.write("%s\n" % each)
-        upload_file(args['bucket'], args['output_s3_key'], '/tmp/' + args['output_s3_key'], s3_client)
+        upload_file(args['output_s3_bucket'], args['output_s3_key'], '/tmp/' + args['output_s3_key'], s3_client)
 
 if __name__ == '__main__':
     main()
