@@ -93,16 +93,17 @@ def main():
 
     output = rdd.collect()
 
-    # drop the extra keys that we added to fill the last batch to be of args['batch']
+    # drop the extra keys that we added to fill the last batch
 
+    keys = keys[:n_keys]
     output = output[:n_keys]
 
     logger.info("predictions: {}".format(output))
 
     if args['output_s3_key'] and args['output_s3_bucket']:
         with open('/tmp/' + args['output_s3_key'] , 'w+') as f:
-            for each in output:
-                f.write("%s\n" % each)
+            for k, o in zip(keys, output):
+                f.write("Key %s: Prediction: %s\n" % (k, o))
         upload_file(args['output_s3_bucket'], args['output_s3_key'], '/tmp/' + args['output_s3_key'], s3_client)
 
 if __name__ == '__main__':

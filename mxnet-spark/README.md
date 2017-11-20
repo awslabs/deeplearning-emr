@@ -1,15 +1,15 @@
-# Distributed Offline Inference using Apache MXNet and Apache Spark on Amazon EMR
+# Distributed Inference using Apache MXNet and Apache Spark on Amazon EMR
 
 In this article we will demonstrate how to run distributed offline inference on large datasets using [Aapche MXNet](http://mxnet.apache.org/) (incubating) and [Apache Spark](https://spark.apache.org/) on [Amazon EMR](https://aws.amazon.com/emr/) platform. We will explain how offline inference is useful, why it is challenging, and how you can leverage MXNet and Spark on Amazon EMR to overcome this challenge.
 
 ## Distributed Inference on Large Datasets - Need and Challenges
 
-Once a deep learning model has been trained, it is put to work by running inference on new data. Inference may be executed in real-time, for tasks that require immediate feedback such as fraud detection. This is typically known as online inference. Alternatively, inference may be executed offline, when a pre-computation is useful. A common use case for offline inference are services with low-latency requirements such as recommender systems. In these cases, recommendations are pre-computed using offline inference, results are stored in low latency storage, and on demand, recommendations are served from storage. 
+Once a deep learning model has been trained, it is put to work by running inference on new data. Inference may be executed in real-time, for tasks that require immediate feedback such as fraud detection. This is typically known as online inference. Alternatively, inference may be executed offline, when a pre-computation is useful. A common use case for offline inference are services with low-latency requirements such as recommender systems  that requires sorting and ranking many user-product scores. In these cases, recommendations  that requires sorting and ranking many user-product scoresare pre-computed using offline inference, results are stored in low latency storage, and on demand, recommendations are served from storage. 
 Backfilling historic data with predictions generated from state of the art models is another use case. As a hypothetical example, NY Times could use this setup to backfill archived photographs with person names predicated from a person detection model. Distributed inference can also be used for testing new models on historical data to verify if they yield better results before deploying to production.
 
 Typically, distributed inference is performed on large scale datasets spanning millions of records or more.
 Processing such massive datasets within a reasonable amount of time require a cluster of machines set up with deep learning capabilities.
-A distributed cluster enables high throughput processing via data partitioning and task parallelization. However, setting up a deep learning data processing cluster comes with challenges:
+A distributed cluster enables high throughput processing via data partitioning, batching and task parallelization. However, setting up a deep learning data processing cluster comes with challenges:
 * **Cluster Setup and Management**: Setting up and monitoring nodes, maintaining high availability, deploying and configuring software packages, and more.
 * **Resource and Job Management**: Scheduling and tracking jobs, partitioning data and handling job failures.
 * **Deep learning setup**: deploying, configuring and running deep learning tasks.
@@ -26,6 +26,7 @@ MXNet is a fast and scalable deep learning framework that is optimized for perfo
 We will walk through the steps to setup and execute offline distributed inference on a large dataset, using Spark and MXNet on Amazon EMR. We will use a pre-trained [ResNet-18](http://data.mxnet.io/models/imagenet/resnet/18-layers/) image recognition model, available on the MXNet [model zoo](http://data.mxnet.io/models/). We will run inference against the publicly available CIFAR-10 dataset that contains 60,000 color images. The example will demonstrate running inference on CPUs, but one can easily extended to use GPUs.
 
 The high level steps for the setup and execution are listed below, and laid out in detail in the following sections:
+
 * Setup MXNet and Spark on EMR.
 * Initialize Spark application.
 * Load and partition data on the cluster.
@@ -53,6 +54,7 @@ InstanceGroupType=CORE,InstanceCount=4,InstanceType=c4.8xlarge \
 --name "mxnet-spark-demo"
 ```
 Substitute the below arguments:
+
 * `<YOUR-KEYPAIR>` - Your EC2 Key Pair to ssh into the master.
 * `<YOUR-SUBNET-ID>` - Subnet in which to launch the cluster, you have to pass this argument to create high compute instances such c4.8xlarge
 * `<AWS-REGION>` - AWS region where you want to launch the cluster
@@ -60,7 +62,13 @@ Substitute the below arguments:
 
 `--bootstrap-actions` is used to install git, pillow, boto libraries.
 
-The code snippets that we discuss below are available in [deeplearning-emr](https://github.com/awslabs/deeplearning-emr) Github repository under the `mxnet-spark` folder. It contains the complete code for running inference using MXNet and Spark. We will also discuss how to submit spark application using `spark-submit` in one of the sub-sections.
+You can find more information about IAM roles needed to setup a EMR cluster [here](http://docs.aws.amazon.com/emr/latest/ManagementGuide/emr-iam-roles-creatingroles.html)
+
+The code snippets that we discuss below are available in [deeplearning-emr](https://github.com/awslabs/deeplearning-emr) Github repository under the `mxnet-spark` folder. It contains the complete code for running inference using MXNet and Spark. We will also discuss how to submit spark application using `spark-submit` in one of the sub-sections below. The `mxnet-spark` folder contains 3 files,  
+ 
+* [infer_main.py](https://github.com/awslabs/deeplearning-emr/mxnet-spark/infer_main.py) contains the code to run on the driver, 
+* [utils.py](https://github.com/awslabs/deeplearning-emr/mxnet-spark/utils.py) contains a few helper methods, and 
+* [mxinfer.py](https://github.com/awslabs/deeplearning-emr/mxnet-spark/mxinfer.py) contains the code to download the model files on the worker nodes, Load bytes into numpy and run prediction on a batch of images.
 
 ### Initialization.
 We will use [PySpark](https://spark.apache.org/docs/0.9.0/python-programming-guide.html) - Spark's Python interface, to create our application. A Spark application consists of a single **driver** program that runs the user's main function and one or more **executor** processes that run various tasks in parallel.
@@ -68,13 +76,14 @@ We will use [PySpark](https://spark.apache.org/docs/0.9.0/python-programming-gui
 To execute a Spark application, the driver splits up the work into jobs. Each job is further split into stages and each stage consists of a set of independent tasks that run in parallel. A task is the smallest unit of work in Spark and executes the same code, each on a different data partition - logical chunk of a large distributed data set.
 
 ![Spark Cluster](https://spark.apache.org/docs/latest/img/cluster-overview.png)
+
 **Image Credit:** [Apache Spark Docs](https://spark.apache.org/docs/latest/cluster-overview.html)
 
 Spark provides an abstraction to work with a distributed dataset - Resilient Distributed Dataset(RDD). RDD is an immutable distributed collection of objects partitioned across the cluster that can be operated on in parallel. RDDs can be created either by parallelizing a collection or an external dataset.
 
 The pipeline of our distributed inference application at a high level looks like:
 
-![Application Pipeline](resources/pipeline.png)
+![pipeline.png](resources/pipeline.png)
 
 Spark by default creates one task per core on the executor. Since MXNet has built-in parallelism to efficiently use all the CPU cores, we'll configure our application to create only one task per executor and let MXNet all the cores on the instance.
 In the below code we will set the configuration key `spark.executor.cores` to `1`, and pass the `conf` object when creating `SparkContext`. When submitting the application, you'll see that we also set the number of executors to the number of workers available on the cluster, there by forcing one executor per node instead of using the default setting for dynamic allocation of executors.
@@ -89,7 +98,7 @@ logger.info("Spark Context created")
 
 ### Load and partition data on the cluster.
 We have already copied CIFAR-10 data into a [Amazon S3](https://aws.amazon.com/s3/) bucket `mxnet-spark-demo`. Since the data stored in S3, can be accessed on all nodes we do not have to move data between the driver and executors. We will fetch only the S3 keys on the driver and create an RDD of keys using the [boto](http://boto.cloudhackers.com/en/latest/) library - Python interface to access AWS Services. 
-This RDD will be partitioned and distributed to the executors in the cluster and we will fetch and process the images directly on the executors.
+This RDD will be partitioned and distributed to the executors in the cluster and we will fetch and process the mini-batch of images directly on the executors.
 
 We will use the helper method ```fetch_s3_keys``` from [utils.py](https://github.com/awslabs/deeplearning-emr/mxnet-spark/utils.py) to get all the keys from an S3 bucket, this method also takes a prefix to list keys that start with that prefix. The arguments are passed when you submit the main application.
 
@@ -98,9 +107,9 @@ s3_client = get_s3client(args['access_key'], args['secret_key'])
 keys = fetch_s3_keys(args['bucket'], args['prefix'], s3_client)
 ```
 
-The batch size as determined by `args['batch']` is the number of images that can be fetched, preprocessed and run inference on each executor at once. This is bound by how much memory is available for each task. `args['access_key']` and  `args['secret_key']` are optional arguments to access the S3 bucket in another account if Instance Role is setup with the right permissions the script will  automatically use the IAM role.
+The batch size as determined by `args['batch']` is the number of images that can be fetched, preprocessed and run inference on each executor at once. This is bound by how much memory is available for each task. `args['access_key']` and  `args['secret_key']` are optional arguments to access the S3 bucket in another account if Instance Role is setup with the right permissions the script will  automatically use the IAM role that was assigned to the cluster at launch.
 
-We will split the RDD of `keys` into partitions with each partition containing a batch of image keys. If the keys cannot be perfectly divided into partitions of batch size, we will fill the last partition to reuse some of the initial set of keys. This is needed since we will be binding(see below) to a fixed batch size.
+We will split the RDD of `keys` into partitions with each partition containing a mini-batch of image keys. If the keys cannot be perfectly divided into partitions of batch size, we will fill the last partition to reuse some of the initial set of keys. This is needed since we will be binding(see below) to a fixed batch size.
 
 
 ```Python
@@ -180,7 +189,7 @@ def readImage(img_bytes):
 ### Inference using MXNet on the Executors
 As stated above we will be running one executor per node and one task per executor for this application. 
 
-Before running inference, we have to load the model files.The `MXModel` class in [mxinfer.py](https://github.com/awslabs/deeplearning-emr/mxnet-spark/mxinfer.py) downloads the model files and creates a MXNet Module and stores in the `MXModel` class at first use. We implemented a singleton pattern so that we do not have to instantiate and load the model for every preidiction.
+Before running inference, we have to load the model files.The `MXModel` class in [mxinfer.py](https://github.com/awslabs/deeplearning-emr/mxnet-spark/mxinfer.py) downloads the model files from MXNet model zoo and creates a MXNet Module and stores in the `MXModel` class at first use. We implemented a singleton pattern so that we do not have to instantiate and load the model for every preidiction.
 
 The  `download_model_files` method in the MXModel singleton class will download the ResNet-18 model files. The model consists of a Symbol file with .json extension that describes the neural network graph and a binary file with .params extension containing the model parameters. For classification models, there will be a synsets.txt containing the classes and their corresponding labels.
 
@@ -222,7 +231,7 @@ After downloading the model files, we will load them and instantiate MXNet modul
         return mod
 ```
 
-We will download and instantiate MXModel object once on the first call to the predict method. The predict transformation method also takes a 4-dimensional array holding a batch (of size `args['batch']`) of images and calls the MXNet module `forward` method to produce the predictions for that batch of images. 
+We will download and instantiate MXModel object once on the first call to the predict method. The predict transformation method also takes a 4-dimensional array holding a batch (of size `args['batch']`) of color images (the other 3 dimensions of RGB) and calls the MXNet module `forward` method to produce the predictions for that batch of images. 
 
 *Note that we are importing the `mxnet` and `numpy` modules within this method for the reasons discussed in the note earlier.*
 ```Python
@@ -247,11 +256,7 @@ def predict(img_batch, args):
 git clone https://github.com/awslabs/deeplearning-emr.git && cd deeplearning-emr/mxnet-spark
 ```
 
-We will use the ```spark-submit``` script to run our Spark Application. The mxnet-spark folder contains 3 files,  
- 
-* [infer_main.py](https://github.com/awslabs/deeplearning-emr/mxnet-spark/infer_main.py) which contains the code to run on the driver, 
-* [utils.py](https://github.com/awslabs/deeplearning-emr/mxnet-spark/utils.py) contains a few helper methods, and 
-* [mxinfer.py](https://github.com/awslabs/deeplearning-emr/mxnet-spark/mxinfer.py) contains the code to download the model files on the worker nodes, Load bytes into numpy and run prediction on a batch of images.
+We will use the ```spark-submit``` script to run our Spark Application. 
 
 ```bash
 export LD_PATH=$LD_LIBRARY_PATH ; spark-submit --deploy-mode cluster \
@@ -288,12 +293,14 @@ Finally, we will collect the predictions generated for each partition using Spar
 
 ```Python
     output = rdd.collect()
-    # drop the extra keys that we added to fill the last batch to be of args['batch']
+    # drop the extra keys that we added to fill the last batch
+    keys = keys[:n_keys]
     output = output[:n_keys]
-    if args['output_s3_key']:
+  
+    if args['output_s3_key'] and args['output_s3_bucket']:
         with open('/tmp/' + args['output_s3_key'] , 'w+') as f:
-            for each in output:
-                f.write("%s\n" % each)
+            for k, o in zip(keys, output):
+                f.write("Key %s: Prediction: %s\n" % (k, o))
         upload_file(args['output_s3_bucket'], args['output_s3_key'], '/tmp/' + args['output_s3_key'], s3_client)
 ```
 
@@ -303,7 +310,7 @@ Finally, we will collect the predictions generated for each partition using Spar
  
  The below screenshot from the EMR console Applicaiton History shows the application tasks, execution times, etc., 
  
-![Application Status](resources/application-history.png)
+![application-history.png](resources/application-history.png)
 
 Spark Applications running on EMR can also be monitored using the Yarn ResourceManager Web UI on port 8088 on the driver host. The various Web UIs available on the EMR cluster and how to access them are listed here [YARN Web UI on EMR](https://docs.aws.amazon.com/emr/latest/ManagementGuide/emr-web-interfaces.html).
 
@@ -314,7 +321,7 @@ A screenshot of the web monitoring tool is shown below. We can see the execution
 
 Another great feature of Amazon EMR is the integration with [Amazon CloudWatch](https://aws.amazon.com/cloudwatch/), which allows monitoring of cluster resources and applications. In the screenshot below we can see the CPU utilization across the cluster nodes, which stayed below 25%.
 
-![CPU Utilization](resources/cpu-utilization.png)
+![CPU Utilization.png](resources/cpu-utilization.png)
 
 ## Summary
 To summarize, we demonstrated setting up a Spark cluster of 4 nodes, that uses MXNet to run distributed inference across 10000 images stored on S3, completing the processing within 5(4.4) minutes.
@@ -341,3 +348,11 @@ I would like to thank my colleagues at [Amazon AI](https://aws.amazon.com/amazon
 * Madan Jampani - Principal Engineer, Amazon AI.
 * Hagay Lupesko - Software Development Manager, Amazon AI.
 * Roshani Nagmote - Sofware Engineer, Amazon AI.
+
+```sequence
+
+```
+
+```sequence
+
+```
