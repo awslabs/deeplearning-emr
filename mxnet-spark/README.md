@@ -10,6 +10,7 @@ Backfilling historic data with predictions generated from state of the art model
 Typically, distributed inference is performed on large scale datasets spanning millions of records or more.
 Processing such massive datasets within a reasonable amount of time require a cluster of machines set up with deep learning capabilities.
 A distributed cluster enables high throughput processing via data partitioning, batching and task parallelization. However, setting up a deep learning data processing cluster comes with challenges:
+
 * **Cluster Setup and Management**: Setting up and monitoring nodes, maintaining high availability, deploying and configuring software packages, and more.
 * **Resource and Job Management**: Scheduling and tracking jobs, partitioning data and handling job failures.
 * **Deep learning setup**: deploying, configuring and running deep learning tasks.
@@ -329,13 +330,14 @@ To summarize, we demonstrated setting up a Spark cluster of 4 nodes, that uses M
 As demonstrated, Spark was able to automatically handle failures by rescheduling failed tasks on available executors eliminating the need for manual operator intervention.
 
 ## Learn More.
-1) [Amazon EMR - Amazon Elastic MapReduce](https://aws.amazon.com/emr/)
-2) [Apache Spark - Lightning-fast cluster computing](https://spark.apache.org/)
-3) [Apache MXNet - Flexible and efficient deep learning.](http://mxnet.apache.org/)
-4) [MXNet Symbol - Neural network graphs and auto-differentiation](http://mxnet.incubator.apache.org/tutorials/basic/symbol.html)
-5) [MXNet Module - Neural network training and inference](http://mxnet.incubator.apache.org/tutorials/basic/module.html)
-6) [MXNet - Using pre-trained models](http://mxnet.incubator.apache.org/tutorials/python/predict_image.html)
-7) [Spark Cluster Overview](https://spark.apache.org/docs/2.2.0/cluster-overview.html)
+
+1) [Amazon Elastic MapReduce](https://aws.amazon.com/emr/)  
+2) [Apache Spark - Lightning-fast cluster computing](https://spark.apache.org/)  
+3) [Apache MXNet - Flexible and efficient deep learning.](http://mxnet.apache.org/)  
+4) [MXNet Symbol - Neural network graphs and auto-differentiation](http://mxnet.incubator.apache.org/tutorials/basic/symbol.html)  
+5) [MXNet Module - Neural network training and inference](http://mxnet.incubator.apache.org/tutorials/basic/module.html)  
+6) [MXNet - Using pre-trained models](http://mxnet.incubator.apache.org/tutorials/python/predict_image.html)  
+7) [Spark Cluster Overview](https://spark.apache.org/docs/2.2.0/cluster-overview.html)  
 8) [Submitting Spark Applications](https://spark.apache.org/docs/2.2.0/submitting-applications.html)
 
 ## Future Improvements
@@ -348,11 +350,3 @@ I would like to thank my colleagues at [Amazon AI](https://aws.amazon.com/amazon
 * Madan Jampani - Principal Engineer, Amazon AI.
 * Hagay Lupesko - Software Development Manager, Amazon AI.
 * Roshani Nagmote - Sofware Engineer, Amazon AI.
-
-```sequence
-
-```
-
-```sequence
-
-```
