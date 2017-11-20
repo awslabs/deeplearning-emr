@@ -275,7 +275,7 @@ infer_main.py --sym_url 'http://data.mxnet.io/models/imagenet/resnet/18-layers/r
 --output_s3_bucket `<YOUR_S3_BUCKET>` \
 --output_s3_key 'cifar10_test_results'
 ```
-**Note:** Replace `<YOUR_S3_BUCKET>` with the s3 bucket you want to store the result. You should have pass either access/secret key or have permission in the Instance IAM Role.
+**Note:** Replace `<YOUR_S3_BUCKET>` with the s3 bucket you want to store the result. You should have either pass access/secret key or have permission in the Instance IAM Role.
 
 The arguments to the spark-submit are:
 
