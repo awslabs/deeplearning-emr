@@ -4,7 +4,7 @@ In this article we will demonstrate how to run distributed offline inference on 
 
 ## Distributed Inference on Large Datasets - Need and Challenges
 
-Once a deep learning model has been trained, it is put to work by running inference on new data. Inference may be executed in real-time, for tasks that require immediate feedback such as fraud detection. This is typically known as online inference. Alternatively, inference may be executed offline, when a pre-computation is useful. A common use case for offline inference are services with low-latency requirements such as recommender systems  that requires sorting and ranking many user-product scores. In these cases, recommendations  that requires sorting and ranking many user-product scoresare pre-computed using offline inference, results are stored in low latency storage, and on demand, recommendations are served from storage. 
+Once a deep learning model has been trained, it is put to work by running inference on new data. Inference may be executed in real-time, for tasks that require immediate feedback such as fraud detection. This is typically known as online inference. Alternatively, inference may be executed offline, when a pre-computation is useful. A common use case for distributed offline inference are services with low-latency requirements such as recommender systems that require sorting and ranking many user-product scores. In these cases, recommendations are pre-computed using offline inference, results are stored in low latency storage, and on demand, recommendations are served from storage. 
 Backfilling historic data with predictions generated from state of the art models is another use case. As a hypothetical example, NY Times could use this setup to backfill archived photographs with person names predicated from a person detection model. Distributed inference can also be used for testing new models on historical data to verify if they yield better results before deploying to production.
 
 Typically, distributed inference is performed on large scale datasets spanning millions of records or more.
@@ -24,7 +24,7 @@ EMR along with Spark simplifies the task of cluster and distributed job manageme
 
 MXNet is a fast and scalable deep learning framework that is optimized for performance on both CPU and GPU.
 
-We will walk through the steps to setup and execute offline distributed inference on a large dataset, using Spark and MXNet on Amazon EMR. We will use a pre-trained [ResNet-18](http://data.mxnet.io/models/imagenet/resnet/18-layers/) image recognition model, available on the MXNet [model zoo](http://data.mxnet.io/models/). We will run inference against the publicly available CIFAR-10 dataset that contains 60,000 color images. The example will demonstrate running inference on CPUs, but one can easily extended to use GPUs.
+We will walk through the steps to setup and execute distributed inference on a large dataset, using Spark and MXNet on Amazon EMR. We will use a pre-trained [ResNet-18](http://data.mxnet.io/models/imagenet/resnet/18-layers/) image recognition model, available on the MXNet [model zoo](http://data.mxnet.io/models/). We will run inference against the publicly available CIFAR-10 dataset that contains 60,000 color images. The example will demonstrate running inference on CPUs, but one can easily extended to use GPUs.
 
 The high level steps for the setup and execution are listed below, and laid out in detail in the following sections:
 
@@ -80,14 +80,14 @@ To execute a Spark application, the driver splits up the work into jobs. Each jo
 
 **Image Credit:** [Apache Spark Docs](https://spark.apache.org/docs/latest/cluster-overview.html)
 
-Spark provides an abstraction to work with a distributed dataset - Resilient Distributed Dataset(RDD). RDD is an immutable distributed collection of objects partitioned across the cluster that can be operated on in parallel. RDDs can be created either by parallelizing a collection or an external dataset.
+Spark provides an abstraction to work with a distributed dataset - Resilient Distributed Dataset (RDD). RDD is an immutable distributed collection of objects partitioned across the cluster that can be operated on in parallel. RDDs can be created either by parallelizing a collection or an external dataset.
 
 The pipeline of our distributed inference application at a high level looks like:
 
 ![pipeline.png](resources/pipeline.png)
 
 Spark by default creates one task per core on the executor. Since MXNet has built-in parallelism to efficiently use all the CPU cores, we'll configure our application to create only one task per executor and let MXNet all the cores on the instance.
-In the below code we will set the configuration key `spark.executor.cores` to `1`, and pass the `conf` object when creating `SparkContext`. When submitting the application, you'll see that we also set the number of executors to the number of workers available on the cluster, there by forcing one executor per node instead of using the default setting for dynamic allocation of executors.
+In the below code we will set the configuration key `spark.executor.cores` to `1`, and pass the `conf` object when creating `SparkContext`. When submitting the application, you'll see that we also set the number of executors to the number of workers available on the cluster, there by forcing one executor per node and turn off dynamic allocation of executors.
 
 ```Python
 conf = SparkConf().setAppName("Distributed Inference using MXNet and Spark")
@@ -110,7 +110,7 @@ keys = fetch_s3_keys(args['bucket'], args['prefix'], s3_client)
 
 The batch size as determined by `args['batch']` is the number of images that can be fetched, preprocessed and run inference on each executor at once. This is bound by how much memory is available for each task. `args['access_key']` and  `args['secret_key']` are optional arguments to access the S3 bucket in another account if Instance Role is setup with the right permissions the script will  automatically use the IAM role that was assigned to the cluster at launch.
 
-We will split the RDD of `keys` into partitions with each partition containing a mini-batch of image keys. If the keys cannot be perfectly divided into partitions of batch size, we will fill the last partition to reuse some of the initial set of keys. This is needed since we will be binding(see below) to a fixed batch size.
+We will split the RDD of `keys` into partitions with each partition containing a mini-batch of image keys. If the keys cannot be perfectly divided into partitions of batch size, we will fill the last partition to reuse some of the initial set of keys. This is needed since we will be binding (see below) to a fixed batch size.
 
 
 ```Python
@@ -138,7 +138,7 @@ sc.broadcast(args['bucket'])
 rdd = rdd.mapPartitions(lambda k : download_objects(args['bucket'], k))
 ```
 
-We will run another transformation to tranform the each image in memory into a numpy array object using [Python Pillow](https://python-pillow.org/) - Python Imaging Library. We will use pillow to decode the images(in png format) in memory and translate to an numpy object. This is done in the `read_images` and `load_images` of [mxinfer.py](https://github.com/awslabs/deeplearning-emr/mxnet-spark/mxinfer.py). 
+We will run another transformation to tranform the each image in memory into a numpy array object using [Python Pillow](https://python-pillow.org/) - Python Imaging Library. We will use pillow to decode the images (in png format) in memory and translate to an numpy object. This is done in the `read_images` and `load_images` of [mxinfer.py](https://github.com/awslabs/deeplearning-emr/mxnet-spark/mxinfer.py). 
 
 ```Python
 rdd = rdd.mapPartitions(load_images)
@@ -185,7 +185,7 @@ def readImage(img_bytes):
     return img
 
 ```
-**Note:** In this application, you will see that *we are importing the modules(numpy, mxnet, pillow, etc.,) inside the mapPartitions function instead of once at the top of the file. This is because PySpark will try to serialize all the modules and any dependent libraries that are imported at the module level and most often fail pickling the modules and any other associated binaries of the module*. Otherwise Spark will expect that the routines and libraries are available on the nodes, we will ship the routines as code files when we submit the application using `spark-submit` script, the libraries are already installed on all the nodes. One more thing to look out for is if you use a member of an object in your function, Spark could end up serializing the entire object. 
+**Note:** In this application, you will see that *we are importing the modules (numpy, mxnet, pillow, etc.,) inside the mapPartitions function instead of once at the top of the file. This is because PySpark will try to serialize all the modules and any dependent libraries that are imported at the module level and most often fail pickling the modules and any other associated binaries of the module*. Otherwise Spark will expect that the routines and libraries are available on the nodes, we will ship the routines as code files when we submit the application using `spark-submit` script, the libraries are already installed on all the nodes. One more thing to look out for is if you use a member of an object in your function, Spark could end up serializing the entire object. 
 
 ### Inference using MXNet on the Executors
 As stated above we will be running one executor per node and one task per executor for this application. 
@@ -252,7 +252,7 @@ def predict(img_batch, args):
 ```
 
 ### Running the Inference Spark Application
-1) First clone the [deeplearning-emr](https://github.com/awslabs/deeplearning-emr) Github repository that contain the codes for running Inference using MXNet and Spark.
+1) First clone the [deeplearning-emr](https://github.com/awslabs/deeplearning-emr) Github repository that contain the codes for running inference using MXNet and Spark.
 
 ```bash
 git clone https://github.com/awslabs/deeplearning-emr.git && cd deeplearning-emr/mxnet-spark
@@ -281,17 +281,17 @@ infer_main.py --sym_url 'http://data.mxnet.io/models/imagenet/resnet/18-layers/r
 
 The arguments to the spark-submit are:
 
-* `--py-files`: comma separated list of code files(without spaces) that need to be shipped to the workers.  
-* `--deploy-mode`: `cluster` or `client`. When you run the application in the cluster mode, Spark would choose one of the workers to run the driver and the executor.  `cluster` mode is useful when you have a large cluster size, the master node on EMR cluster could be busy running webservers for Hadoop, Spark, etc., You could run the application in the `client` deploy mode.  
-* `--master`: `yarn`.  
-* `--conf spark.executor.memory=`: The amount of memory that can used by each executor.  
+* `--py-files`: Comma separated list of code files (without spaces) that need to be shipped to the workers.  
+* `--deploy-mode`: `cluster` or `client`. When you run the application in cluster mode, Spark will choose one of the workers to run the driver and the executor. Running in `cluster` mode is useful when the cluster is of large size and the master node on EMR cluster is busy running webservers for Hadoop, Spark, etc., You could also run the application in the `client` deploy mode.  
+* `--master`: `yarn`. EMR configures YARN as the resource manager.
+* `--conf spark.executor.memory=`: Amount of memory that can used by each executor.  
 * `--conf spark.executorEnv.LD_LIBRARY_PATH` and `--driver-library-path`: set to `LD_LIBRARY_PATH`
-* `--num-executors`: This is the number of workers in your cluster(excluding the EMR master).  
-* `infer_main.py`: is the main program that starts the Spark application and it takes arguments s3 bucket, s3 key prefix, batch size, etc,.  
-* `--batch`: the number of images that can be processed at a time on each executor. This is bound by the memory and cpu available on each worker node.
+* `--num-executors`: Total number of core and task nodes in the EMR cluster.  
+* `infer_main.py`: Main program that starts the Spark application and it takes arguments s3 bucket, s3 key prefix, batch size, etc,.  
+* `--batch`: Number of images that can be processed at a time on each executor. This is bound by the memory and cpu available on each worker node.
 
-### Collecting predictions.
-Finally, we will collect the predictions generated for each partition using Spark `collect` action and write the predictions to S3. The S3 location(`args['output_s3_bucket']`, `args['output_s3_key']`) to which results should be written can be passed as an argument to the `infer_main.py`
+### Collecting predictions
+Finally, we will collect the predictions generated for each partition using Spark `collect` action and write those predictions to S3. The S3 location (`args['output_s3_bucket']`, `args['output_s3_key']`) to which results should be written can be passed as an argument to the `infer_main.py`
 
 ```Python
     output = rdd.collect()
@@ -307,10 +307,10 @@ Finally, we will collect the predictions generated for each partition using Spar
 ```
 
 ### Monitoring the Spark Application
- You can view Spark application history and YARN application status right in the Amazon EMR console, Application history is updated throughout runtime in near real-time, and the history is available for up to seven days after the application is complete **even after you have terminated the cluster**. It also provides advanced metrics like memory usage, S3 reads, HDFS utilization, etc., all in one place. This also eliminates the need SSH forwarding unlike to use YARN UI. 
+ You can view Spark application history and YARN application status right in the Amazon EMR console, application history is updated throughout runtime in near real-time, and the history is available for up to seven days after the application is complete **even after you have terminated the cluster**. It also provides advanced metrics like memory usage, S3 reads, HDFS utilization, etc., all in one place. This also eliminates the need SSH forwarding unlike to use YARN UI. 
  You can find the features and how to use in [Spark Application History on EMR Console](http://docs.aws.amazon.com/emr/latest/ManagementGuide/emr-cluster-application-history.html). 
  
- The below screenshot from the EMR console Applicaiton History shows the application tasks, execution times, etc., 
+ The below screenshot from the EMR console Application History shows the application tasks, execution times, etc., 
  
 ![application-history.png](resources/application-history.png)
 
@@ -326,9 +326,7 @@ Another great feature of Amazon EMR is the integration with [Amazon CloudWatch](
 ![CPU Utilization.png](resources/cpu-utilization.png)
 
 ## Summary
-To summarize, we demonstrated setting up a Spark cluster of 4 nodes, that uses MXNet to run distributed inference across 10000 images stored on S3, completing the processing within 5(4.4) minutes.
-
-As demonstrated, Spark was able to automatically handle failures by rescheduling failed tasks on available executors eliminating the need for manual operator intervention.
+To summarize, we demonstrated setting up a Spark cluster of 4 nodes, that uses MXNet to run distributed inference across 10000 images stored on S3, completing the processing within 5 (4.4) minutes.
 
 ## Learn More.
 
@@ -342,7 +340,7 @@ As demonstrated, Spark was able to automatically handle failures by rescheduling
 8) [Submitting Spark Applications](https://spark.apache.org/docs/2.2.0/submitting-applications.html)  
 
 ## Future Improvements
-* **Compute/IO access Optimization** - In this applicaiton we have observed that the Compute/IO access on the executors has a square wave pattern where IO(no compute) and compute(no IO) are interleaved. Ideally this can be optimized to parallelize IO and Compute, since we are using only one executor on each node this becomes challenging to manually manage resources utilization on each node.
+* **Compute/IO access optimization** - In this applicaiton we have observed that the Compute/IO access on the executors has a square wave pattern where IO (no compute) and compute (no IO) are alternating. Ideally, this can be optimized by interleaving IO with compute. However, since we are using only one executor on each node it becomes challenging to manually manage resource utilization on each node.
 * **Using GPUs**: Another big improvement would be to use GPUs to run inference on the batch of data.
 
 ## Acknowledgements
