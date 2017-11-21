@@ -1,6 +1,6 @@
 # Distributed Inference using Apache MXNet and Apache Spark on Amazon EMR
 
-In this article we will demonstrate how to run distributed offline inference on large datasets using [Aapche MXNet](http://mxnet.apache.org/) (incubating) and [Apache Spark](https://spark.apache.org/) on [Amazon EMR](https://aws.amazon.com/emr/) platform. We will explain how offline inference is useful, why it is challenging, and how you can leverage MXNet and Spark on Amazon EMR to overcome this challenge.
+In this article we will demonstrate how to run distributed offline inference on large datasets using [Aapche MXNet](http://mxnet.apache.org/) (incubating) and [Apache Spark](https://spark.apache.org/) on [Amazon EMR](https://aws.amazon.com/emr/) platform. We will explain how offline inference is useful, why it is challenging, and how you can leverage MXNet and Spark on Amazon EMR to overcome the challenges.
 
 ## Distributed Inference on Large Datasets - Need and Challenges
 
@@ -195,6 +195,7 @@ Before running inference, we have to load the model files.The `MXModel` class in
 The  `download_model_files` method in the MXModel singleton class will download the ResNet-18 model files. The model consists of a Symbol file with .json extension that describes the neural network graph and a binary file with .params extension containing the model parameters. For classification models, there will be a synsets.txt containing the classes and their corresponding labels.
 
 After downloading the model files, we will load them and instantiate MXNet module object in the `init_module` routine that performs the following steps:
+
 * load the symbol file and create a input Symbol, load parameters into an MXNet NDArray and parse `arg_params` and `aux_params`.
 * create a new MXNet module and assign the symbol.
 * bind symbol to input data.
@@ -338,7 +339,7 @@ As demonstrated, Spark was able to automatically handle failures by rescheduling
 5) [MXNet Module - Neural network training and inference](http://mxnet.incubator.apache.org/tutorials/basic/module.html)  
 6) [MXNet - Using pre-trained models](http://mxnet.incubator.apache.org/tutorials/python/predict_image.html)  
 7) [Spark Cluster Overview](https://spark.apache.org/docs/2.2.0/cluster-overview.html)  
-8) [Submitting Spark Applications](https://spark.apache.org/docs/2.2.0/submitting-applications.html)
+8) [Submitting Spark Applications](https://spark.apache.org/docs/2.2.0/submitting-applications.html)  
 
 ## Future Improvements
 * **Compute/IO access Optimization** - In this applicaiton we have observed that the Compute/IO access on the executors has a square wave pattern where IO(no compute) and compute(no IO) are interleaved. Ideally this can be optimized to parallelize IO and Compute, since we are using only one executor on each node this becomes challenging to manually manage resources utilization on each node.
